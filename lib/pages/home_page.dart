@@ -9,6 +9,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final ApiService apiService = ApiService();
   List<dynamic> curhatList = [];
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -17,6 +18,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchCurhatan() async {
+    setState(() => isLoading = true);
     try {
       final data = await apiService.getCurhatan();
       setState(() {
@@ -24,6 +26,11 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       print("Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data: $e')),
+      );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
@@ -33,27 +40,40 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text("MauCurhat.id"),
         backgroundColor: Colors.blue,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: fetchCurhatan,
+          )
+        ],
       ),
       body: Column(
         children: [
-          _buildHeader(context), // Menambahkan context agar tombol bisa berpindah halaman
+          _buildHeader(context),
           Expanded(
-            child: curhatList.isEmpty
+            child: isLoading
                 ? Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: EdgeInsets.all(16.0),
-                    itemCount: curhatList.length,
-                    itemBuilder: (context, index) {
-                      final curhat = curhatList[index];
-                      return _curhatCard(context, curhat['judul'], curhat['isi']);
-                    },
-                  ),
+                : curhatList.isEmpty
+                    ? Center(child: Text("Belum ada curhatan."))
+                    : ListView.builder(
+                        padding: EdgeInsets.all(16.0),
+                        itemCount: curhatList.length,
+                        itemBuilder: (context, index) {
+                          final curhat = curhatList[index];
+                          return _curhatCard(
+                            context,
+                            curhat['judul'] ?? '',
+                            curhat['isi'] ?? '',
+                          );
+                        },
+                      ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/add_curhat'); // Pastikan rute benar
+        onPressed: () async {
+          await Navigator.pushNamed(context, '/add_curhat');
+          fetchCurhatan(); // refresh data setelah kembali
         },
         backgroundColor: Colors.blue,
         child: Icon(Icons.add, color: Colors.white),
@@ -82,7 +102,7 @@ class _HomePageState extends State<HomePage> {
           SizedBox(height: 10),
           ElevatedButton(
             onPressed: () {
-              Navigator.pushNamed(context, '/add_curhat'); // Navigasi ke halaman tambah curhatan
+              Navigator.pushNamed(context, '/add_curhat');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple.shade200,
